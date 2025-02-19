@@ -1,0 +1,64 @@
+library(NSO1212)
+library(TSstudio)
+#nso.data <- get_table(tbl_id = "DT_NSO_0300_00V2")
+fixed <- get_table(
+  tbl_id = "DT_NSO_0300_00V2",
+  PERIOD = make_period(start = "201601", end = "202412", period = "M"),CODE = "1",CODE1 = "1",
+  try = TRUE,
+  timeout = 4
+)
+fixed<-data.frame(date=fixed$Period,fixed=fixed$DTVAL_CO,no=seq_len(nrow(fixed)))
+fixed <- fixed[order(fixed$no, decreasing=TRUE), ]
+fixed$year  <- substr(as.character(fixed$date), 1, 4)
+fixed$month <- substr(as.character(fixed$date), 5, 6)
+max_fixed<-max(fixed$no)
+fixed1<-ts(data = fixed$fixed,frequency = 12,start = c(fixed[fixed$no==max_fixed,"year"],fixed[fixed$no==max_fixed,"month"]))
+ts_info(fixed1)
+ts_plot(fixed1,color = "#009999", title = "fixed",
+        Xtitle = "Time",
+        Ytitle = "fixed")
+library(forecast)
+fit<-auto.arima(fixed1)
+forecast_horizon <- 12
+fc <- forecast(fit, h = forecast_horizon)
+forecast_values <- as.data.frame(fc)
+forecast_values<-ts(data = forecast_values$`Point Forecast`,frequency = 12,start = c(2025,1))
+forcast_cu<- dplyr::bind_rows(as.data.frame(fixed1),as.data.frame(forecast_values))
+forcast_cu<-ts(data=forcast_cu$x,frequency = 12,start = c(fixed[fixed$no==max_fixed,"year"],fixed[fixed$no==max_fixed,"month"]))
+ts_info(forcast_cu)
+ts_plot(forcast_cu,color = "#009999", title = "fixed",
+        Xtitle = "Time",
+        Ytitle = "fixed")
+library(mFilter)
+fixed.hp <- hpfilter(fixed$fixed,freq = 1600)
+fixed.hp.trend<-ts(data = (fixed.hp$trend),frequency = 4,,start = c(fixed[fixed$no==max_fixed,"year"],fixed[fixed$no==max_fixed,"month"]))
+fixed.hp.cycle<-ts(data = (fixed.hp$cycle),frequency = 4,start = c(fixed[fixed$no==max_fixed,"year"],fixed[fixed$no==max_fixed,"month"]))
+
+ts_plot(fixed.hp.trend,color = "#009999", title = "Trend",
+        Xtitle = "Time",
+        Ytitle = "trend")
+ts_plot(fixed.hp.cycle,color = "#009999", title = "cycle",
+        Xtitle = "Time",
+        Ytitle = "cycle")
+combined_data<-cbind(fixed1,fixed.hp.trend)
+ts_plot(combined_data,
+        slider = FALSE,title = NULL,Ytitle = NULL, Xtitle = NULL)
+fit_cycle<-auto.arima(fixed.hp.cycle)
+fc_cycle <- forecast(fit_cycle, h = forecast_horizon)
+forecast_values_cycle <- as.data.frame(fc_cycle)
+#write.csv(file = "a.csv",fixed.hp.cycle)
+
+fit_tbats.cycle <- tbats(fixed.hp.cycle,
+                   use.box.cox = TRUE,    
+                   use.trend = TRUE,       
+                   use.damped.trend = TRUE, 
+                   seasonal.periods = c(12) 
+)
+
+
+fc_tbats.cycle <- forecast(fit_tbats.cycle, h = forecast_horizon)
+
+
+plot(fc_tbats.cycle, main = "TBATS Урьдчилсан Таамаглал", xlab = "Цаг", ylab = "Утга")
+
+print(summary(fc_tbats.cycle))
