@@ -1,0 +1,59 @@
+library(TSstudio)
+library(xts)
+library(zoo)
+library(dplyr)
+library(readxl)
+Stock <- read_excel("C:/Users/pc/OneDrive - National University of Mongolia/Desktop/CU/Stock.xlsx", 
+                    col_types = c("date", "numeric", "skip"))
+compute_gradients <- function(mu, theta, sigma2, X, Delta, n, learning_rate) {
+  gamma <- exp(-theta * Delta)
+  Z <- X - mu
+  Yt <- diff(X)
+  # Нэгдүгээр эрэмбийн нөхцөл
+  dL_dmu <- (2 * theta / sigma2) * sum(Yt * (1 - gamma) / (1 - gamma^2))
+  
+  dL_dtheta <- (n / (2 * theta)) - sum((Delta * gamma^2) / (1 - gamma^2)) +
+    (1 / sigma2) * sum(Yt * (Yt * (gamma^2 - 1) + 2 * theta * Delta * gamma * (Z[-1] * gamma - Z[-length(Z)])) / (1 - gamma^2)^2)
+  
+  dL_dsigma2 <- (-n / (2 * sigma2)) + (theta / sigma2^2) * sum(Yt^2 / (1 - gamma^2))
+  
+  #Давталт
+  mu <- mu + learning_rate * dL_dmu
+  theta <- theta + learning_rate * dL_dtheta
+  sigma2 <- sigma2 + learning_rate * dL_dsigma2
+  
+  return(list(mu = mu, theta = theta, sigma2 = sigma2))
+}
+
+gradient_descent <- function(X, Delta, n, mu_init, theta_init, sigma2_init, learning_rate, iterations) {
+  mu <- mu_init
+  theta <- theta_init
+  sigma2 <- sigma2_init
+  
+  for (i in 1:iterations) {
+    gradients <- compute_gradients(mu, theta, sigma2, X, Delta, n, learning_rate)
+    mu <- gradients$mu
+    theta <- gradients$theta
+    sigma2 <- gradients$sigma2
+    
+    cat(sprintf("Iteration %d: mu = %.4f, theta = %.4f, sigma^2 = %.4f\n", i, mu, theta, sigma2))
+  }
+  
+  return(list(mu = mu, theta = theta, sigma2 = sigma2))
+}
+
+n <- length(diff(Stock$value))
+mu_init <- mean(diff(Stock$value))
+theta_init <- 0.5
+sigma2_init <- var(diff(Stock$value))
+
+#Stock <- Stock %>%
+#  mutate(adjusted_value = value - first(value))
+
+learning_rate <- 0.05
+iterations <- 100000
+
+Delta <- rep(1,n)
+params <- gradient_descent(diff(Stock$value), Delta, n, mu_init, theta_init, sigma2_init, learning_rate, iterations)
+
+
