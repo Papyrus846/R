@@ -50,8 +50,8 @@ sigma2_init <- var(diff(Stock$value))
 #Stock <- Stock %>%
 #  mutate(adjusted_value = value - first(value))
 
-learning_rate <- 0.05
-iterations <- 100000
+learning_rate <- 0.01
+iterations <- 10000
 
 Delta <- rep(1,n)
 params <- gradient_descent(diff(Stock$value), Delta, n, mu_init, theta_init, sigma2_init, learning_rate, iterations)
